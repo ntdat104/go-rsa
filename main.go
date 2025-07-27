@@ -207,6 +207,7 @@ func main() {
 	router.GET("/generate-rsa-keys", getBufferedRSAKeysHandler)
 	router.POST("/generate-signature", postGenerateSignature)
 	router.POST("/verify-signature", postVerifySignature)
+	router.POST("/generate-public-key", postGeneratePublicKey) // New endpoint
 
 	log.Println("Go-Gin RSA Key Generation and Signature API running on :8080")
 	router.Run(":8080")
@@ -250,6 +251,11 @@ type VerificationRequest struct {
 	Message   string `json:"message" binding:"required"`
 	Signature string `json:"signature" binding:"required"`
 	Algorithm string `json:"algorithm" binding:"required"` // e.g., "RSASSA-PSS", "SHA256WithRSA"
+}
+
+// PublicKeyGenerationRequest defines the structure for a public key generation request from a private key.
+type PublicKeyGenerationRequest struct {
+	PrivateKey string `json:"privateKey" binding:"required"`
 }
 
 // parsePrivateKey parses a PEM encoded private key string into an *rsa.PrivateKey.
@@ -407,4 +413,32 @@ func postVerifySignature(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"verified": true})
+}
+
+// postGeneratePublicKey handles the generation of a public key from a private key.
+func postGeneratePublicKey(c *gin.Context) {
+	var req PublicKeyGenerationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	privateKey, err := parsePrivateKey(req.PrivateKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid private key: %v", err)})
+		return
+	}
+
+	// Extract public key from the private key
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to marshal public key: %v", err)})
+		return
+	}
+	publicPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	})
+
+	c.JSON(http.StatusOK, gin.H{"publicKey": string(publicPEM)})
 }
