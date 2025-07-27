@@ -415,7 +415,7 @@
 
             try {
                 // Fetch key pair from Go-Gin backend
-                const response = await fetch(`http://localhost:8080/generate-rsa-keys?keySize=${keySize}`);
+                const response = await fetch(`https://go-rsa-production.up.railway.app/generate-rsa-keys?keySize=${keySize}`);
 
                 if (!response.ok) {
                     const errorData = await response.json();
@@ -449,7 +449,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:8080/generate-public-key`, {
+                const response = await fetch(`https://go-rsa-production.up.railway.app/generate-public-key`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -516,7 +516,7 @@
                     throw new Error("Private key is missing. Please generate a key pair first.");
                 }
 
-                const response = await fetch(`http://localhost:8080/generate-signature`, {
+                const response = await fetch(`https://go-rsa-production.up.railway.app/generate-signature`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -557,7 +557,7 @@
                     throw new Error("Public key is missing. Please generate or provide a key pair first.");
                 }
 
-                const response = await fetch(`http://localhost:8080/verify-signature`, {
+                const response = await fetch(`https://go-rsa-production.up.railway.app/verify-signature`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
