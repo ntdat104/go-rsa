@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"log"
@@ -203,8 +205,10 @@ func main() {
 	})
 
 	router.GET("/generate-rsa-keys", getBufferedRSAKeysHandler)
+	router.POST("/generate-signature", postGenerateSignature)
+	router.POST("/verify-signature", postVerifySignature)
 
-	log.Println("Go-Gin RSA Key Generation API (Buffered/On-Demand) running on :8080")
+	log.Println("Go-Gin RSA Key Generation and Signature API running on :8080")
 	router.Run(":8080")
 }
 
@@ -231,4 +235,176 @@ func getBufferedRSAKeysHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, kp)
+}
+
+// SignatureRequest defines the structure for a signature generation request.
+type SignatureRequest struct {
+	PrivateKey string `json:"privateKey" binding:"required"`
+	Message    string `json:"message" binding:"required"`
+	Algorithm  string `json:"algorithm" binding:"required"` // e.g., "RSASSA-PSS", "SHA256WithRSA"
+}
+
+// VerificationRequest defines the structure for a signature verification request.
+type VerificationRequest struct {
+	PublicKey string `json:"publicKey" binding:"required"`
+	Message   string `json:"message" binding:"required"`
+	Signature string `json:"signature" binding:"required"`
+	Algorithm string `json:"algorithm" binding:"required"` // e.g., "RSASSA-PSS", "SHA256WithRSA"
+}
+
+// parsePrivateKey parses a PEM encoded private key string into an *rsa.PrivateKey.
+func parsePrivateKey(pemEncoded string) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(pemEncoded))
+	if block == nil || block.Type != "PRIVATE KEY" {
+		return nil, fmt.Errorf("failed to parse PEM block containing private key")
+	}
+
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		// Try PKCS1 if PKCS8 fails (older format)
+		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %v", err)
+		}
+	}
+
+	rsaPrivKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("parsed private key is not an RSA private key")
+	}
+	return rsaPrivKey, nil
+}
+
+// parsePublicKey parses a PEM encoded public key string into an *rsa.PublicKey.
+func parsePublicKey(pemEncoded string) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode([]byte(pemEncoded))
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("failed to parse PEM block containing public key")
+	}
+
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %v", err)
+	}
+
+	rsaPubKey, ok := publicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("parsed public key is not an RSA public key")
+	}
+	return rsaPubKey, nil
+}
+
+// getHashAlgorithm maps a string algorithm name to a crypto.Hash constant.
+func getHashAlgorithm(algo string) (crypto.Hash, error) {
+	switch algo {
+	case "SHA256", "SHA256WithRSA":
+		return crypto.SHA256, nil
+	case "SHA384", "SHA384WithRSA":
+		return crypto.SHA384, nil
+	case "SHA512", "SHA512WithRSA":
+		return crypto.SHA512, nil
+	case "SHA1", "SHA1WithRSA", "SHA1withRSAandMGF1": // Common names for SHA1
+		return crypto.SHA1, nil
+	case "MD5", "MD5WithRSA":
+		return crypto.MD5, nil
+	case "RSASSA-PSS": // PSS itself implies a hash, usually SHA256 or SHA384/SHA512, but we'll use SHA256 as default for PSS if not explicitly stated
+		return crypto.SHA256, nil // Default for PSS if not specified, or user can specify SHA256WithRSA for PSS
+	default:
+		return 0, fmt.Errorf("unsupported hashing algorithm: %s", algo)
+	}
+}
+
+// postGenerateSignature handles the generation of an RSA signature.
+func postGenerateSignature(c *gin.Context) {
+	var req SignatureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	privateKey, err := parsePrivateKey(req.PrivateKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid private key: %v", err)})
+		return
+	}
+
+	hashAlgo, err := getHashAlgorithm(req.Algorithm)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if !hashAlgo.Available() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Hashing algorithm %s is not available.", req.Algorithm)})
+		return
+	}
+
+	hasher := hashAlgo.New()
+	hasher.Write([]byte(req.Message))
+	hashed := hasher.Sum(nil)
+
+	var signature []byte
+	if req.Algorithm == "RSASSA-PSS" {
+		// For PSS, we need to specify the hash algorithm explicitly in options
+		// and also provide the salt length. rsa.PSSSaltLengthAuto is common.
+		signature, err = rsa.SignPSS(rand.Reader, privateKey, hashAlgo, hashed, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthAuto, Hash: hashAlgo})
+	} else {
+		// For PKCS1v15, the hash algorithm is implicitly tied to the signature scheme name
+		signature, err = rsa.SignPKCS1v15(rand.Reader, privateKey, hashAlgo, hashed)
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to generate signature: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"signature": base64.StdEncoding.EncodeToString(signature)})
+}
+
+// postVerifySignature handles the verification of an RSA signature.
+func postVerifySignature(c *gin.Context) {
+	var req VerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	publicKey, err := parsePublicKey(req.PublicKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid public key: %v", err)})
+		return
+	}
+
+	signatureBytes, err := base64.StdEncoding.DecodeString(req.Signature)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid base64 signature."})
+		return
+	}
+
+	hashAlgo, err := getHashAlgorithm(req.Algorithm)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if !hashAlgo.Available() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Hashing algorithm %s is not available.", req.Algorithm)})
+		return
+	}
+
+	hasher := hashAlgo.New()
+	hasher.Write([]byte(req.Message))
+	hashed := hasher.Sum(nil)
+
+	var verifyErr error
+	if req.Algorithm == "RSASSA-PSS" {
+		verifyErr = rsa.VerifyPSS(publicKey, hashAlgo, hashed, signatureBytes, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthAuto, Hash: hashAlgo})
+	} else {
+		verifyErr = rsa.VerifyPKCS1v15(publicKey, hashAlgo, hashed, signatureBytes)
+	}
+
+	if verifyErr != nil {
+		c.JSON(http.StatusOK, gin.H{"verified": false, "error": "Signature verification failed."})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"verified": true})
 }

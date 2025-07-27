@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSA Signature Generation & Validation</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.5.25/jsrsasign-all-min.js"></script>
     <style>
         body {
             font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -13,7 +11,7 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -22,7 +20,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }
-        
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -30,33 +28,33 @@
             text-align: center;
             border-radius: 8px 8px 0 0;
         }
-        
+
         .content {
             display: flex;
             min-height: 600px;
         }
-        
+
         .left-panel {
             flex: 1;
             padding: 20px;
             border-right: 1px solid #e0e0e0;
         }
-        
+
         .right-panel {
             flex: 1;
             padding: 20px;
         }
-        
+
         .section {
             margin-bottom: 30px;
         }
-        
+
         .section h3 {
             margin: 0 0 15px 0;
             color: #333;
             font-size: 18px;
         }
-        
+
         textarea {
             width: 100%;
             min-height: 120px;
@@ -68,20 +66,20 @@
             resize: vertical;
             box-sizing: border-box;
         }
-        
+
         textarea:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         .signature-textarea {
             min-height: 200px;
         }
-        
+
         .radio-group {
             margin: 15px 0;
         }
-        
+
         .radio-group label {
             display: block;
             margin: 8px 0;
@@ -90,47 +88,47 @@
             border-radius: 4px;
             transition: background-color 0.2s;
         }
-        
+
         .radio-group label:hover {
             background-color: #f0f0f0;
         }
-        
+
         .radio-group input[type="radio"] {
             margin-right: 10px;
         }
-        
+
         .key-size-group {
             display: flex;
             gap: 20px;
             margin: 15px 0;
             flex-wrap: wrap;
         }
-        
+
         .key-size-group label {
             display: flex;
             align-items: center;
             cursor: pointer;
         }
-        
+
         .key-size-group input[type="radio"] {
             margin-right: 8px;
         }
-        
+
         .mode-group {
             margin: 20px 0;
         }
-        
+
         .mode-group label {
             display: block;
             margin: 10px 0;
             cursor: pointer;
             font-weight: 500;
         }
-        
+
         .mode-group input[type="radio"] {
             margin-right: 10px;
         }
-        
+
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -143,53 +141,53 @@
             transition: transform 0.2s, background 0.3s;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        
+
         button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
-        
+
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        
+
         .key-display {
             display: flex;
             gap: 20px;
             margin: 20px 0;
         }
-        
+
         .key-box {
             flex: 1;
         }
-        
+
         .key-box h4 {
             margin: 0 0 10px 0;
             color: #333;
         }
-        
+
         .alert {
             padding: 12px;
             border-radius: 6px;
             margin: 15px 0;
             font-size: 14px;
         }
-        
+
         .alert-success {
             background-color: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
-        
+
         .alert-error {
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        
+
         .loading {
             display: inline-block;
             width: 16px;
@@ -201,22 +199,22 @@
             margin-right: 8px;
             vertical-align: middle;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
         @media (max-width: 768px) {
             .content {
                 flex-direction: column;
             }
-            
+
             .left-panel {
                 border-right: none;
                 border-bottom: 1px solid #e0e0e0;
             }
-            
+
             .key-display {
                 flex-direction: column;
             }
@@ -228,7 +226,7 @@
         <div class="header">
             <h1>RSA Signature Generation & Validation</h1>
         </div>
-        
+
         <div class="content">
             <div class="left-panel">
                 <div class="section">
@@ -248,45 +246,40 @@
                     </div>
                     <textarea id="base64Output" readonly placeholder="Result will appear here..." style="min-height: 80px; background-color: #f8f9fa;"></textarea>
                 </div>
-                
+
                 <div class="section">
                     <h3>Provide Signature Value (Base64)</h3>
                     <textarea id="signatureInput" placeholder="Give Signature Value here in Base64 format for verification along with plaintext value and click on verify Signature"></textarea>
-                    
+
                     <h3 style="margin-top: 20px;">RSA Signature Algorithms</h3>
                     <div class="radio-group">
                         <label><input type="radio" name="algorithm" value="RSASSA-PSS" checked> RSASSA-PSS</label>
-                        <label><input type="radio" name="algorithm" value="SHA1WithRSA/PSS"> SHA1WithRSA/PSS</label>
-                        <label><input type="radio" name="algorithm" value="SHA224WithRSA/PSS"> SHA224WithRSA/PSS</label>
-                        <label><input type="radio" name="algorithm" value="SHA384WithRSA/PSS"> SHA384WithRSA/PSS</label>
+                        <label><input type="radio" name="algorithm" value="SHA1WithRSA"> SHA1WithRSA</label>
                         <label><input type="radio" name="algorithm" value="SHA1withRSAandMGF1"> SHA1withRSAandMGF1</label>
-                        <label><input type="radio" name="algorithm" value="SHA256withRSA"> SHA256withRSA</label>
-                        <label><input type="radio" name="algorithm" value="sha1WithRSA"> sha1WithRSA</label>
-                        <label><input type="radio" name="algorithm" value="sha384WithRSA"> sha384WithRSA</label>
-                        <label><input type="radio" name="algorithm" value="sha512WithRSA"> sha512WithRSA</label>
-                        <label><input type="radio" name="algorithm" value="md2WithRSA"> md2WithRSA</label>
-                        <label><input type="radio" name="algorithm" value="md5WithRSA"> md5WithRSA</label>
+                        <label><input type="radio" name="algorithm" value="SHA256WithRSA"> SHA256WithRSA</label>
+                        <label><input type="radio" name="algorithm" value="SHA384WithRSA"> SHA384WithRSA</label>
+                        <label><input type="radio" name="algorithm" value="SHA512WithRSA"> SHA512WithRSA</label>
+                        <label><input type="radio" name="algorithm" value="MD5WithRSA"> MD5WithRSA</label>
                     </div>
                 </div>
             </div>
-            
+
             <div class="right-panel">
                 <div class="section">
                     <h3>Generate RSA Key Size</h3>
                     <div class="key-size-group">
-                        <!-- <label><input type="radio" name="keySize" value="512"> 512 bit</label> -->
                         <label><input type="radio" name="keySize" value="1024"> 1024 bit</label>
                         <label><input type="radio" name="keySize" value="2048" checked> 2048 bit</label>
                         <label><input type="radio" name="keySize" value="4096"> 4096 bit</label>
                     </div>
-                    
+
                     <div class="mode-group">
                         <label><input type="radio" name="mode" value="verify"> Verify Signature</label>
                         <label><input type="radio" name="mode" value="generate" checked> Generate Signature</label>
                     </div>
-                    
+
                     <button id="generateKeysBtn">Generate New Key Pair</button>
-                    
+
                     <div class="key-display">
                         <div class="key-box">
                             <h4>Public Key</h4>
@@ -297,7 +290,7 @@
                             <textarea id="privateKey" readonly placeholder="-----BEGIN RSA PRIVATE KEY-----"></textarea>
                         </div>
                     </div>
-                    
+
                     <div class="key-display">
                         <div class="key-box">
                             <h4>ClearText Message</h4>
@@ -308,9 +301,9 @@
                             <textarea id="signatureOutput" class="signature-textarea" readonly></textarea>
                         </div>
                     </div>
-                    
+
                     <button id="processBtn">Generate Signature</button>
-                    
+
                     <div id="result"></div>
                 </div>
             </div>
@@ -318,8 +311,6 @@
     </div>
 
     <script>
-        let currentKeyPair = null;
-        
         // DOM elements
         const generateKeysBtn = document.getElementById('generateKeysBtn');
         const processBtn = document.getElementById('processBtn');
@@ -329,40 +320,47 @@
         const signatureOutputArea = document.getElementById('signatureOutput');
         const signatureInputArea = document.getElementById('signatureInput');
         const resultDiv = document.getElementById('result');
-        
+
         // Base64 elements
         const base64InputArea = document.getElementById('base64Input');
         const base64OutputArea = document.getElementById('base64Output');
         const processBase64Btn = document.getElementById('processBase64Btn');
         const clearBase64Btn = document.getElementById('clearBase64Btn');
-        
+
         // Event listeners
         generateKeysBtn.addEventListener('click', generateKeyPair);
         processBtn.addEventListener('click', processSignature);
         processBase64Btn.addEventListener('click', processBase64);
         clearBase64Btn.addEventListener('click', clearBase64);
-        
+
         // Mode change listener
         document.querySelectorAll('input[name="mode"]').forEach(radio => {
             radio.addEventListener('change', updateUI);
         });
-        
+
         // Base64 mode change listener
         document.querySelectorAll('input[name="base64Mode"]').forEach(radio => {
             radio.addEventListener('change', updateBase64UI);
         });
-        
+
         function updateUI() {
             const mode = document.querySelector('input[name="mode"]:checked').value;
             if (mode === 'generate') {
                 processBtn.textContent = 'Generate Signature';
-                signatureInputArea.style.display = 'block'; // Or hide if you want to only display output
+                // In generate mode, signatureInput is for displaying output, not user input
+                // signatureInputArea.style.display = 'none'; // Could hide if desired, but keeping visible for easy copy
+                signatureOutputArea.style.display = 'block';
             } else {
                 processBtn.textContent = 'Verify Signature';
                 signatureInputArea.style.display = 'block';
+                signatureOutputArea.style.display = 'none'; // Hide output area in verify mode
             }
+            // Clear previous results/messages
+            resultDiv.innerHTML = '';
+            signatureOutputArea.value = '';
+            signatureInputArea.value = '';
         }
-        
+
         function updateBase64UI() {
             const mode = document.querySelector('input[name="base64Mode"]:checked').value;
             if (mode === 'encode') {
@@ -375,16 +373,16 @@
                 base64OutputArea.placeholder = 'Decoded text will appear here...';
             }
         }
-        
+
         function processBase64() {
             const mode = document.querySelector('input[name="base64Mode"]:checked').value;
             const input = base64InputArea.value.trim();
-            
+
             if (!input) {
                 base64OutputArea.value = '';
                 return;
             }
-            
+
             try {
                 if (mode === 'encode') {
                     // Encode to Base64
@@ -399,107 +397,82 @@
                 base64OutputArea.value = 'Error: Invalid input for ' + mode + ' operation';
             }
         }
-        
+
         function clearBase64() {
             base64InputArea.value = '';
             base64OutputArea.value = '';
         }
-        
+
         function showResult(message, isSuccess = true) {
             resultDiv.innerHTML = `<div class="alert ${isSuccess ? 'alert-success' : 'alert-error'}">${message}</div>`;
         }
-        
+
         function showLoading(button, text) {
             button.innerHTML = `<span class="loading"></span>${text}`;
             button.disabled = true;
         }
-        
+
         function hideLoading(button, text) {
             button.innerHTML = text;
             button.disabled = false;
         }
-        
+
         // --- MODIFIED generateKeyPair FUNCTION TO CALL BACKEND API ---
         async function generateKeyPair() {
             const keySize = parseInt(document.querySelector('input[name="keySize"]:checked').value);
-            
+
             showLoading(generateKeysBtn, 'Fetching Keys...'); // Update loading message
-            
+
             try {
                 // Fetch key pair from Go-Gin backend
                 const response = await fetch(`https://go-rsa-production.up.railway.app/generate-rsa-keys?keySize=${keySize}`);
-                
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || 'Failed to fetch key pair from server.');
                 }
-                
+
                 const data = await response.json();
-                
+
                 // Set the fetched PEM strings to the text areas
                 publicKeyArea.value = data.publicKey;
                 privateKeyArea.value = data.privateKey;
-                
-                // Parse the fetched private key PEM string into a jsrsasign key object
-                // This is crucial for client-side signing
-                currentKeyPair = {
-                    prvKeyObj: KEYUTIL.getKey(data.privateKey),
-                    pubKeyObj: KEYUTIL.getKey(data.publicKey) // Also parse public key for consistency
-                };
-                
+
                 showResult(`Successfully fetched ${keySize}-bit RSA key pair from server!`);
-                
+
             } catch (error) {
                 console.error('Key fetching error:', error);
                 showResult('Error fetching key pair: ' + error.message, false);
-                currentKeyPair = null; // Clear key pair on error
                 publicKeyArea.value = '';
                 privateKeyArea.value = '';
             }
-            
+
             hideLoading(generateKeysBtn, 'Generate New Key Pair');
         }
         // --- END MODIFIED generateKeyPair FUNCTION ---
-        
+
         async function processSignature() {
             const mode = document.querySelector('input[name="mode"]:checked').value;
             const algorithm = document.querySelector('input[name="algorithm"]:checked').value;
             const clearText = clearTextArea.value.trim();
-            
+
             if (!clearText) {
                 showResult('Please enter a message to process', false);
                 return;
             }
-            
-            // Ensure currentKeyPair is available for both generate and verify modes
-            // For verify, if currentKeyPair isn't set, try to parse from publicKeyArea
-            if (!currentKeyPair && !publicKeyArea.value) {
-                showResult('Please generate or provide a key pair first.', false);
+
+            // Check for key availability based on mode
+            if (mode === 'generate' && !privateKeyArea.value) {
+                showResult('A private key is required to generate a signature. Please generate a key pair first.', false);
+                return;
+            }
+            if (mode === 'verify' && !publicKeyArea.value) {
+                showResult('A public key is required to verify a signature. Please generate or provide a key pair first.', false);
                 return;
             }
 
-            // If currentKeyPair isn't set but publicKeyArea has a value (e.g., manually entered), try to parse it
-            if (!currentKeyPair && publicKeyArea.value) {
-                try {
-                    currentKeyPair = {
-                        pubKeyObj: KEYUTIL.getKey(publicKeyArea.value),
-                        prvKeyObj: privateKeyArea.value ? KEYUTIL.getKey(privateKeyArea.value) : null // Private key only needed for signing
-                    };
-                } catch (e) {
-                    showResult('Error parsing provided key(s). Please ensure valid PEM format.', false);
-                    currentKeyPair = null;
-                    return;
-                }
-            }
-
-            // Specific check for private key availability for 'generate' mode
-            if (mode === 'generate' && (!currentKeyPair || !currentKeyPair.prvKeyObj)) {
-                showResult('A private key is required to generate a signature. Please ensure a private key is loaded.', false);
-                return;
-            }
-            
             showLoading(processBtn, mode === 'generate' ? 'Generating Signature...' : 'Verifying Signature...');
-            
+
             try {
                 if (mode === 'generate') {
                     await generateSignature(clearText, algorithm);
@@ -510,101 +483,94 @@
                 console.error('Signature processing error:', error);
                 showResult('Error processing signature: ' + error.message, false);
             }
-            
+
             hideLoading(processBtn, mode === 'generate' ? 'Generate Signature' : 'Verify Signature');
         }
-        
+
         async function generateSignature(message, algorithm) {
             try {
-                let sigAlg = mapAlgorithm(algorithm);
-                
-                // Create signature using jsrsasign
-                const sig = new KJUR.crypto.Signature({"alg": sigAlg});
-                sig.init(currentKeyPair.prvKeyObj); // Use the private key object obtained from the backend
-                sig.updateString(message);
-                const sigValueHex = sig.sign();
-                
-                // Convert to base64
-                const sigValueB64 = KJUR.util.hextobase64(sigValueHex);
-                
-                signatureOutputArea.value = sigValueB64;
-                signatureInputArea.value = sigValueB64; // Also populate input for easy verification
-                
+                const privateKey = privateKeyArea.value;
+                if (!privateKey) {
+                    throw new Error("Private key is missing. Please generate a key pair first.");
+                }
+
+                const response = await fetch(`https://go-rsa-production.up.railway.app/generate-signature`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        privateKey: privateKey,
+                        message: message,
+                        algorithm: algorithm
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate signature from server.');
+                }
+
+                const data = await response.json();
+                signatureOutputArea.value = data.signature;
+                signatureInputArea.value = data.signature; // Also populate input for easy verification
+
                 showResult('Signature generated successfully!');
-                
+
             } catch (error) {
                 throw new Error('Failed to generate signature: ' + error.message);
             }
         }
-        
+
         async function verifySignature(message, algorithm) {
             const signatureB64 = signatureInputArea.value.trim();
-            
             if (!signatureB64) {
                 showResult('Please enter a signature to verify', false);
                 return;
             }
-            
+
             try {
-                let sigAlg = mapAlgorithm(algorithm);
-                
-                // Convert base64 signature to hex
-                const sigValueHex = KJUR.util.base64tohex(signatureB64);
-                
-                // Get public key object
-                let pubKeyObj;
-                // Prefer the parsed pubKeyObj from currentKeyPair if available
-                if (currentKeyPair && currentKeyPair.pubKeyObj) {
-                    pubKeyObj = currentKeyPair.pubKeyObj;
-                } else {
-                    // Fallback to parsing from textarea if currentKeyPair wasn't set or public key wasn't parsed
-                    pubKeyObj = KEYUTIL.getKey(publicKeyArea.value);
+                const publicKey = publicKeyArea.value;
+                if (!publicKey) {
+                    throw new Error("Public key is missing. Please generate or provide a key pair first.");
                 }
-                
-                // Verify signature
-                const sig = new KJUR.crypto.Signature({"alg": sigAlg});
-                sig.init(pubKeyObj);
-                sig.updateString(message);
-                const isValid = sig.verify(sigValueHex);
-                
-                if (isValid) {
+
+                const response = await fetch(`https://go-rsa-production.up.railway.app/verify-signature`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        publicKey: publicKey,
+                        message: message,
+                        signature: signatureB64,
+                        algorithm: algorithm
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to verify signature from server.');
+                }
+
+                const data = await response.json();
+
+                if (data.verified) {
                     showResult('✓ Signature verification successful! The signature is valid.');
                 } else {
-                    showResult('✗ Signature verification failed! The signature is invalid.', false);
+                    showResult('✗ Signature verification failed! The signature is invalid. Error: ' + (data.error || 'Unknown error.'), false);
                 }
-                
+
             } catch (error) {
                 throw new Error('Failed to verify signature: ' + error.message);
             }
         }
-        
-        function mapAlgorithm(algorithm) {
-            const algorithmMap = {
-                'RSASSA-PSS': 'SHA256withRSAandMGF1', // Default for general RSASSA-PSS
-                'SHA1WithRSA/PSS': 'SHA1withRSAandMGF1',
-                'SHA224WithRSA/PSS': 'SHA224withRSAandMGF1',
-                'SHA384WithRSA/PSS': 'SHA384withRSAandMGF1',
-                'SHA1withRSAandMGF1': 'SHA1withRSAandMGF1',
-                'SHA256withRSA': 'SHA256withRSA',
-                'sha1WithRSA': 'SHA1withRSA',
-                'sha384WithRSA': 'SHA384withRSA',
-                'sha512WithRSA': 'SHA512withRSA',
-                'md2WithRSA': 'MD2withRSA',
-                'md5WithRSA': 'MD5withRSA'
-            };
-            
-            // Fallback to SHA256withRSA if a specific PSS variant is chosen
-            // and it's not explicitly mapped to a corresponding MGF1 in jsrsasign
-            return algorithmMap[algorithm] || 'SHA256withRSA';
-        }
-        
+
         // Initialize UI
         updateUI();
         updateBase64UI();
-        
+
         // Generate initial key pair on page load
-        // Changed to use 2048-bit as default for API call
-        // Also removed the setTimeout for immediate fetch
         document.addEventListener('DOMContentLoaded', () => {
              // Set default key size to 2048 for consistency with backend
              document.querySelector('input[name="keySize"][value="2048"]').checked = true;
